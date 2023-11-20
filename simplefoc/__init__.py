@@ -44,7 +44,7 @@ class FrameType(Enum):
 
 
 class Frame(object):
-    def __init__(self, frame_type, register=None, values=None, alert=None, registers=None, telemetryid=None, motor_id=None):
+    def __init__(self, frame_type, register=None, values=None, alert=None, registers=None, telemetryid=None, motor_id=None, header=None, timestamp=None):
         self.frame_type = frame_type
         self.register = register
         self.values = values
@@ -52,6 +52,8 @@ class Frame(object):
         self.registers = registers
         self.telemetryid = telemetryid
         self.motor_id = motor_id
+        self.header = header
+        self.timestamp = timestamp
 
     def __repr__(self): # TODO prettify this output
         return self.__dict__.__str__()
