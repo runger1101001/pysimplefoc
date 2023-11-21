@@ -1,19 +1,18 @@
 
-from enum import Enum
-import serial as ser
+import time, re, threading, serial as ser
 from rx.subject import Subject
 from rx import operators as ops
 from .registers import SimpleFOCRegisters as regs
-
+from simplefoc import Frame, FrameType
 
 MonitoringFlags = {
-    regs.REG_TARGET.id : 0b1000000,
-    regs.REG_VOLTAGE_Q.id : 0b0100000,
-    regs.REG_VOLTAGE_D.id : 0b0010000,
-    regs.REG_CURRENT_Q.id : 0b0001000,
-    regs.REG_CURRENT_D.id : 0b0000100,
-    regs.REG_VELOCITY.id : 0b0000010,
-    regs.REG_ANGLE.id  : 0b0000001 
+    regs.REG_TARGET.id : int('1000000',2),
+    regs.REG_VOLTAGE_Q.id : int('0100000',2),
+    regs.REG_VOLTAGE_D.id : int('0010000',2),
+    regs.REG_CURRENT_Q.id : int('0001000',2),
+    regs.REG_CURRENT_D.id : int('0000100',2),
+    regs.REG_VELOCITY.id : int('0000010',2),
+    regs.REG_ANGLE.id  : int('0000001',2)
 }
 
 
@@ -41,6 +40,15 @@ class Commander:
         self.connection = connection
         self._subject = Subject()
         self._observable = self._subject.pipe(
+            ops.filter(lambda x: not self.__is_monitoring_data(x)),
+            ops.share()
+        )
+        self._monitoring_header = None
+        self._telemetry = self._subject.pipe(
+            ops.filter(lambda x: self._monitoring_header is not None),
+            ops.filter(lambda x: self.__is_monitoring_data(x)),
+            ops.map(lambda x: self.__parse_monitoring_data(x)),
+            ops.filter(lambda x: x is not None),
             ops.share()
         )
         self._echosubject = Subject()
@@ -49,6 +57,7 @@ class Commander:
         )
         self._in_sync = False
         self.monitor_downsample = 0
+        self.is_running = False
 
     def full_control(self, motor_letter):
         return FullControl(self, motor_letter)
@@ -88,8 +97,13 @@ class Commander:
 
     def connect(self):
         self.connection.open()
+        self.is_running = True
+        self._read_thread = threading.Thread(target=self.__run)
+        self._read_thread.start()
 
     def disconnect(self):
+        self.is_running = False
+        self._read_thread.join()
         self.connection.close()
     
     def echo(self):
@@ -99,7 +113,45 @@ class Commander:
         return self.observable().pipe(
             ops.merge(self.echo())
         )
+
+    def telemetry(self):
+        return self._telemetry
     
+    def use_monitoring_registers(self, registers):
+        regval = 0
+        for reg in registers:
+            if reg.id in MonitoringFlags:
+                regval |= MonitoringFlags[reg.id]
+        header = Frame(frame_type=FrameType.HEADER, registers=[], telemetryid=0)
+        for reg in [regs.REG_TARGET, regs.REG_VOLTAGE_Q, regs.REG_VOLTAGE_D, regs.REG_CURRENT_Q, regs.REG_CURRENT_D, regs.REG_VELOCITY, regs.REG_ANGLE]:
+            if regval & MonitoringFlags[reg.id] != 0:
+                header.registers.append(reg)
+        self._monitoring_header = header if len(header.registers) > 0 else None
+    
+    def __is_monitoring_data(self, line:str):
+        return re.match(r'[0-9-]', line)
+
+    def __parse_monitoring_data(self, line:str):
+        t = Frame(frame_type=FrameType.TELEMETRY, telemetryid=0, header=self._monitoring_header, values=[float(f) for f in line.split(',')], timestamp=time.time())
+        if len(t.values) != len(t.header.registers):
+            return None
+        return t
+
+    def __run(self):
+        while self.is_running:
+            if self.connection.in_waiting > 0:
+                self.__processLine()
+            else:
+                time.sleep(0.001)
+
+    def __processLine(self):
+        line = self.connection.readline()
+        if line is not None:
+            line = line.decode('ascii').strip()
+            if len(line) > 0:
+                self._subject.on_next(line)
+
+
 
 
 class FullControl:
@@ -134,14 +186,15 @@ class FullControl:
         self.commander.listen(callback)
 
     def telemetry(self):
-        pass
+        return self.commander.telemetry()
 
     def set_monitoring(self, registers):
         regval = 0
         for reg in registers:
             if reg.id in MonitoringFlags:
                 regval |= MonitoringFlags[reg.id]
-        self.commander.send_command(self.letter + 'MS' + str(regval))
+        self.commander.send_command(self.letter + 'MS' + bin(regval)[2:].zfill(7))
+        self.commander.use_monitoring_registers(registers)
 
     def start_monitoring(self, downsample=100):
         self.commander.send_command(self.letter + 'MD' + str(downsample))
