@@ -1,5 +1,5 @@
 
-import time, re, threading, serial as ser
+import time, re, threading, math, serial as ser
 from rx.subject import Subject
 from rx import operators as ops
 from .registers import SimpleFOCRegisters as regs
@@ -175,6 +175,47 @@ class FullControl:
         #self.commander.send_command(self.letter + '' + str(max_angle))
         #self.commander.send_command(self.letter + '' + str(min_angle))
 
+    def set_motor_parameters(self, resistance:float=None, kv:float=None, inductance:float=None):
+        if kv != None: self.commander.send_command(self.letter + 'K' + str(kv))
+        if resistance != None: self.commander.send_command(self.letter + 'R' + str(resistance))
+        if inductance != None: self.commander.send_command(self.letter + 'I' + str(inductance))
+
+    def set_velocity_pid(self, p:float = None, i:float = None, d:float = None, limit:float = None, ramp:float = None, tf:float = None):
+        if p != None: self.commander.send_command(self.letter + 'VP' + str(p))
+        if i != None: self.commander.send_command(self.letter + 'VI' + str(i))
+        if d != None: self.commVnder.send_command(self.letter + 'VD' + str(d))
+        if limit != None: self.Vommander.send_command(self.letter + 'VL' + str(limit))
+        if ramp != None: self.commaVder.send_command(self.letter + 'VR' + str(ramp))
+        if tf != None: self.commanVer.send_command(self.letter + 'VF' + str(tf))
+
+    def set_angle_pid(self, p:float = None, i:float = None, d:float = None, limit:float = None, ramp:float = None, tf:float = None):
+        if p != None: self.commander.send_command(self.letter + 'AP' + str(p))
+        if i != None: self.commander.send_command(self.letter + 'AI' + str(i))
+        if d != None: self.commander.send_command(self.letter + 'AD' + str(d))
+        if limit != None: self.commander.send_command(self.letter + 'AL' + str(limit))
+        if ramp != None: self.commander.send_command(self.letter + 'AR' + str(ramp))
+        if tf != None: self.commander.send_command(self.letter + 'AF' + str(tf))
+
+    def set_current_q_pid(self, p:float = None, i:float = None, d:float = None, limit:float = None, ramp:float = None, tf:float = None):
+        if p != None: self.commander.send_command(self.letter + 'QP' + str(p))
+        if i != None: self.commander.send_command(self.letter + 'QI' + str(i))
+        if d != None: self.commander.send_command(self.letter + 'QD' + str(d))
+        if limit != None: self.commander.send_command(self.letter + 'QL' + str(limit))
+        if ramp != None: self.commander.send_command(self.letter + 'QR' + str(ramp))
+        if tf != None: self.commander.send_command(self.letter + 'QF' + str(tf))
+
+    def set_current_p_pid(self, p:float = None, i:float = None, d:float = None, limit:float = None, ramp:float = None, tf:float = None):
+        if p != None: self.commander.send_command(self.letter + 'DP' + str(p))
+        if i != None: self.commander.send_command(self.letter + 'DI' + str(i))
+        if d != None: self.commander.send_command(self.letter + 'DD' + str(d))
+        if limit != None: self.commander.send_command(self.letter + 'DL' + str(limit))
+        if ramp != None: self.commander.send_command(self.letter + 'DR' + str(ramp))
+        if tf != None: self.commander.send_command(self.letter + 'DF' + str(tf))
+
+    def set_sensor_offsets(self, offset:float=None, zero_electrical_angle:float=None):
+        if offset != None: self.commander.send_command(self.letter + 'SM' + str(offset))
+        if zero_electrical_angle != None: self.commander.send_command(self.letter + 'SE' + str(zero_electrical_angle))
+
     def disable(self):
         self.enable(False)
 
@@ -195,6 +236,11 @@ class FullControl:
                 regval |= MonitoringFlags[reg.id]
         self.commander.send_command(self.letter + 'MS' + bin(regval)[2:].zfill(7))
         self.commander.use_monitoring_registers(registers)
+
+    def get_monitoring(self, register):
+        if register.id in MonitoringFlags:
+            num = 6 - int(math.log2(MonitoringFlags[register.id]))
+            self.commander.send_command(self.letter + 'MG' + str(num))
 
     def start_monitoring(self, downsample=100):
         self.commander.send_command(self.letter + 'MD' + str(downsample))

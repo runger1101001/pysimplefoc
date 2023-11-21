@@ -4,7 +4,16 @@
 
 :warning: API may change until v1.0.0 is released
 
+:warning: not available on PyPI for installation via pip until 1.0.0 is released
+
+
 This python library provides easy control of SimpleFOC from a desktop PC or other environment running python3.
+
+
+
+![](https://github.com/runger1101001/pysimplefoc/assets/7306964/0f40461c-47e1-4494-a50f-89fde83da85b)
+
+
 
 Note: Python API v0.0.3 is designed for use with SimpleFOC v2.3.3 or later
 
