@@ -9,7 +9,7 @@
 
 This python library provides easy control of SimpleFOC from a desktop PC or other environment running python3.
 
-https://github.com/runger1101001/pysimplefoc/raw/main/docs/shell_simple.mp4
+![](https://github.com/runger1101001/pysimplefoc/raw/main/docs/shell_simple.mp4)
 
 Note: Python API v0.0.3 is designed for use with SimpleFOC v2.3.3 or later
 
