@@ -11,7 +11,7 @@ This python library provides easy control of SimpleFOC from a desktop PC or othe
 
 
 
-https://github.com/runger1101001/pysimplefoc/assets/7306964/0f40461c-47e1-4494-a50f-89fde83da85b
+![](https://github.com/runger1101001/pysimplefoc/assets/7306964/0f40461c-47e1-4494-a50f-89fde83da85b)
 
 
 
