@@ -132,7 +132,7 @@ class Commander:
         return re.match(r'[0-9-]', line)
 
     def __parse_monitoring_data(self, line:str):
-        t = Frame(frame_type=FrameType.TELEMETRY, telemetryid=0, header=self._monitoring_header, values=[float(f) for f in line.split(',')], timestamp=time.time())
+        t = Frame(frame_type=FrameType.TELEMETRY, telemetryid=0, header=self._monitoring_header, values=[float(f) for f in line.split('\t')], timestamp=time.time())
         if len(t.values) != len(t.header.registers):
             return None
         return t
