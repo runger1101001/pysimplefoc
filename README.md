@@ -34,14 +34,26 @@ Features:
 1. Install python dependencies:
 
 ```
-pip install pyserial reactivex simplefoc
+pip install pyserial rx
+```
+or, on Debian:
+```
+sudo apt install python3-serial python3-rx
 ```
 
-2. Set up your serial connection to the driver.
+2. Install PySimpleFOC:
 
-3. Decide on protocol to use: Commander or Packets, and if Packets, ASCII or Binary
+```
+pip install simplefoc
+```
 
-4. Write and run some python code (see our [examples](./examples/))
+:warning: Until the release to PyPI you cannot install pysimplefoc via pip. You can still use it: check it out from GitHub, and then create symlink (windows: directory junction) from inside your project to the `simplefoc` folder of pysimplefoc.
+
+3. Set up your serial connection to the driver.
+
+4. Decide on protocol to use: Commander or Packets, and if Packets, Text or Binary
+
+5. Write and run some python code (see our [examples](./examples/))
 
 ## Setup Driver side
 
