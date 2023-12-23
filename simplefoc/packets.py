@@ -8,8 +8,7 @@
 from enum import Enum
 from .registers import parse_register, Register, SimpleFOCRegisters
 import serial as ser
-import time
-import struct
+import time, struct, threading
 from .motors import Motors
 from rx.subject import Subject
 from rx import operators as ops
@@ -70,13 +69,20 @@ class Comms(object):
             ops.share()
         )
         self._in_sync = False
+        self.is_running = False
 
     def disconnect(self):
+        if self.is_running:
+            self.is_running = False
+            self._read_thread.join()
         self.connection.close()
         self._subject.on_completed()
 
     def connect(self):
         self.connection.open()
+        self.is_running = True
+        self._read_thread = threading.Thread(target=self.__run)
+        self._read_thread.start()
 
     def get_frame(self):
         raise NotImplementedError()
@@ -94,7 +100,14 @@ class Comms(object):
     def echo(self):
         return self._echo
 
-
+    def __run(self):
+        while self.is_running:
+            if self.connection.in_waiting > 0:
+                f = self.get_frame()
+                if f is not None:
+                    self._subject.on_next(f)
+            else:
+                time.sleep(0.001)
 
 
 
@@ -117,7 +130,7 @@ class ASCIIComms(Comms):
                     self._in_sync = True
                     self.send_frame(Frame(frame_type=FrameType.SYNC))
             elif character == '\r':
-                pass            
+                pass
             else:
                 self._buffer += character
         return None
@@ -127,7 +140,7 @@ class ASCIIComms(Comms):
         match frame.frame_type:
             case FrameType.REGISTER:
                 framestr += 'R'
-                framestr += str(frame.register)
+                framestr += str(frame.register.id)
                 if frame.values is not None and len(frame.values) > 0:
                     framestr += '='
                     framestr += ','.join([str(v) for v in frame.values])
@@ -145,12 +158,16 @@ class ASCIIComms(Comms):
             case FrameType.TELEMETRY:
                 framestr += 'T'
                 framestr += str(frame.telemetryid)
+                framestr += '='
                 framestr += ','.join([str(v) for v in frame.values])
             case FrameType.HEADER:
                 framestr += 'H'
+                framestr += str(frame.telemetryid)
+                framestr += '='
                 framestr += ','.join([(str(v[0]) +":"+ str[int(v[1])]) for v in frame.registers])
-        self.connection.writeLine(framestr.encode('ascii'))
-        self._echosubject.on_next(framestr)
+        framestr += '\n'
+        self.connection.write(framestr.encode('ascii'))
+        self._echosubject.on_next(framestr[:-1])
 
     def parse_telemetry(self, packet, header):
         packet.header = header
@@ -164,13 +181,15 @@ class ASCIIComms(Comms):
             reg, values = parse_register_and_values(framestr[1:])
             return Frame(frame_type=FrameType.RESPONSE, register=reg, values=values)
         if framestr.startswith('T'):
-            values = [parse_value(v) for v in framestr[1:].split(',')]
-            return Frame(frame_type=FrameType.TELEMETRY, values=values)
+            telemetryid, valuesstr = framestr[1:].split('=')[0:2]
+            values = [parse_value(v) for v in valuesstr.split(',')]
+            return Frame(frame_type=FrameType.TELEMETRY, values=values, telemetryid=int(telemetryid))
         if framestr.startswith('H'):
-            registers = [[int(x) for x in r.split(':')] for r in framestr[1:].split(',')]
-            return Frame(frame_type=FrameType.HEADER, registers=registers)
+            telemetryid, valuesstr = framestr[1:].split('=')[0:2]
+            registers = [[int(x) for x in r.split(':')] for r in valuesstr.split(',')]
+            return Frame(frame_type=FrameType.HEADER, registers=registers, telemetryid=int(telemetryid))
         if framestr.startswith('S'):
-            remote_in_sync = (framestr[2] != '0')
+            remote_in_sync = (framestr[1] != '0')
             return Frame(frame_type=FrameType.SYNC, values=[remote_in_sync])
         if framestr.startswith('A'):
             alert = framestr[1:]
@@ -185,7 +204,7 @@ class BinaryComms(Comms):
         super().__init__(connection)
         self._expected = 0
         self._marker = False
-        self._buffer = bytes()
+        self._buffer = bytearray()
 
     def get_frame(self):
         while self.connection.in_waiting > 0:
@@ -284,7 +303,7 @@ class BinaryComms(Comms):
             if self._expected == 0:
                 self._in_sync = False
                 self._marker = True
-                self._buffer = bytes()
+                self._buffer.clear()
                 return None
             if len(self._buffer) == self._expected:
                 self._in_sync = True
@@ -293,7 +312,7 @@ class BinaryComms(Comms):
                     self._in_sync = False
                 self._expected = 0
                 self._marker = True
-                self._buffer = bytes()
+                self._buffer.clear()
                 return frame
             else:
                 self._buffer.append(byte)
@@ -301,7 +320,7 @@ class BinaryComms(Comms):
         elif len(self._buffer) == self._expected and self._expected > 0:
             self._in_sync = False
             self._expected = 0
-            self._buffer = bytes()
+            self._buffer.clear()
             return None
         if self._marker:
             self._expected = byte

@@ -54,8 +54,8 @@ class SimpleFOCRegisters(object):
         setattr(cls, name, Register(name, id, read_types, write_types))
 
     def by_id(id:int):
-        for r in SimpleFOCRegisters:
-            if r.id == id:
+        for r in vars(SimpleFOCRegisters):      # TODO improve this
+            if isinstance(r, Register) and r.id == id:
                 return r
         return None
 
@@ -67,15 +67,17 @@ class SimpleFOCRegisters(object):
     REG_CONTROL_MODE = Register('REG_CONTROL_MODE',0x05,['b'],['b'])
     REG_TORQUE_MODE = Register('REG_TORQUE_MODE',0x06,['b'],['b'])
     REG_MODULATION_MODE = Register('REG_MODULATION_MODE',0x07,['b'],['b'])
-    REG_TELEMETRY_REG = Register('REG_TELEMETRY_REG',0x08,[],[])
-    REG_TELEMETRY_CTRL = Register('REG_TELEMETRY_CTRL',0x09,['b'],['b'])
-    REG_TELEMETRY_DOWNSAMPLE = Register('REG_TELEMETRY_DOWNSAMPLE',0x0A,['i'],['i'])
 
     REG_TARGET = Register('REG_TARGET',0x08,['f'],['f'])
     REG_ANGLE = Register('REG_ANGLE',0x09,['f'],[])
     REG_POSITION = Register('REG_POSITION',0x10,['i', 'f'],[])
     REG_VELOCITY = Register('REG_VELOCITY',0x11,['f'],[])
     REG_SENSOR_ANGLE = Register('REG_SENSOR_ANGLE',0x12,['f'],[])
+
+    REG_TELEMETRY_REG = Register('REG_TELEMETRY_REG',0x1A,[],[])
+    REG_TELEMETRY_CTRL = Register('REG_TELEMETRY_CTRL',0x1B,['b'],['b'])
+    REG_TELEMETRY_DOWNSAMPLE = Register('REG_TELEMETRY_DOWNSAMPLE',0x1C,['i'],['i'])
+    REG_ITERATIONS_SEC = Register('REG_ITERATIONS_SEC',0x1D,['i'],[])
 
     REG_VOLTAGE_Q = Register('REG_VOLTAGE_Q',0x20,['f'],[])
     REG_VOLTAGE_D = Register('REG_VOLTAGE_D',0x21,['f'],[])

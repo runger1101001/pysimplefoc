@@ -5,6 +5,8 @@ from .telemetry import Telemetry
 from rx import operators as ops, Observable
 from simplefoc import FrameType, Frame
 
+
+
 class Motors(object):
     """ SimpleFOC Motors class
 
@@ -22,12 +24,12 @@ class Motors(object):
     def __init__(self, connection):
         self.connection = connection
         self.current_motor = -1
-        self._obsertvable = self.connection.observable().pipe(
+        self._observable = self.connection.observable().pipe(
             ops.filter(lambda p: p.frame_type == FrameType.RESPONSE or p.frame_type == FrameType.ALERT),
             ops.do_action(self.__set_motor_id),
             ops.share()
         )
-        self._obsertvable.subscribe()
+        self._observable.subscribe()
 
     def disconnect(self):
         self.connection.disconnect()
@@ -86,7 +88,7 @@ class Motors(object):
         )
     
     def __set_motor_id(self, packet):
-        if packet.type == FrameType.RESPONSE:
+        if packet.frame_type == FrameType.RESPONSE:
             if packet.register == SimpleFOCRegisters.REG_MOTOR_ADDRESS:
                 self.current_motor = packet.values[0]
             packet.motor_id = self.current_motor
