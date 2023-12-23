@@ -54,9 +54,11 @@ class SimpleFOCRegisters(object):
         setattr(cls, name, Register(name, id, read_types, write_types))
 
     def by_id(id:int):
-        for r in vars(SimpleFOCRegisters):      # TODO improve this
+        for k in SimpleFOCRegisters.__dict__:      # TODO improve this
+            r = SimpleFOCRegisters.__dict__[k]
             if isinstance(r, Register) and r.id == id:
                 return r
+        print("WARNING: Register id {} not found".format(id))
         return None
 
     REG_STATUS = Register('REG_STATUS',0x00,['b'],[])

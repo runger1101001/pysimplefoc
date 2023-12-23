@@ -50,7 +50,9 @@ def parse_value(valuestr):
 
 def parse_register_and_values(command:str):
     regstr, valuesstr = command.split('=')[0:2]
-    reg = parse_register(regstr)
+    reg = parse_register(int(regstr))
+    if reg is None:
+        raise ValueError("Unknown register: {}".format(regstr))
     values = [parse_value(v) for v in valuesstr.split(',')]
     return reg, values
 
@@ -186,8 +188,16 @@ class ASCIIComms(Comms):
             return Frame(frame_type=FrameType.TELEMETRY, values=values, telemetryid=int(telemetryid))
         if framestr.startswith('H'):
             telemetryid, valuesstr = framestr[1:].split('=')[0:2]
-            registers = [[int(x) for x in r.split(':')] for r in valuesstr.split(',')]
-            return Frame(frame_type=FrameType.HEADER, registers=registers, telemetryid=int(telemetryid))
+            registers = []
+            motors = []
+            for r in valuesstr.split(','):
+                mot, reg = r.split(':')[0:2]
+                motors.append(int(mot))
+                rr = SimpleFOCRegisters.by_id(int(reg))
+                if rr is None:
+                    print("WARNING: header register not found ", reg)
+                registers.append(rr)
+            return Frame(frame_type=FrameType.HEADER, telemetryid=int(telemetryid), registers=registers, motors=motors)
         if framestr.startswith('S'):
             remote_in_sync = (framestr[1] != '0')
             return Frame(frame_type=FrameType.SYNC, values=[remote_in_sync])
@@ -209,7 +219,7 @@ class BinaryComms(Comms):
     def get_frame(self):
         while self.connection.in_waiting > 0:
             byte = self.connection.read()
-            frame = self.__processByte(byte)
+            frame = self.__processByte(byte[0])
             if frame is not None:
                 return frame
         return None
@@ -242,23 +252,26 @@ class BinaryComms(Comms):
                 self.__write_values(frame) # todo finish this, telemetry isn't a single register - don't really need to write telemetry frames though for normal use
             case FrameType.HEADER:
                 self.connection.write(b'H')
-                self.connection.write(len(frame.registers).to_bytes(1))
-                for r in frame.registers:
-                    self.connection.write(int(r[0]).to_bytes(1))
-                    self.connection.write(int(r[1]).to_bytes(1))
+                self.connection.write(int(frame.telemetryid).to_bytes(1))
+                for i in range(0, len(frame.registers)):
+                    self.connection.write(frame.motors[i].to_bytes(1))
+                    self.connection.write(frame.registers[i].id.to_bytes(1))
         self._echosubject.on_next(frame)
 
     def parse_telemetry(self, packet, header):
         packet.header = header
         values = []
+        #print("Parsing telemetry ", packet)
         if header is not None:
             pos = 0
             for reg in header.registers:
+                # TODO some registers can't be used in telemetry, should we check for that here?
                 for t in reg.read_types:
-                    val, size = self.__parse_value(reg.values, pos, t)
+                    val, size = self.__parse_value(packet.values, pos, t)
                     pos += size
                     values.append(val)
         packet.values = values
+        #print("Parsed telemetry ", packet)
         return packet
 
     def __write_values(self, frame, offset=0):
@@ -266,9 +279,9 @@ class BinaryComms(Comms):
             for i, t in enumerate(frame.register.write_types):
                 match t:
                     case 'f':
-                        self.connection.write(struct.pack('f', float(frame.values[offset+i])))
+                        self.connection.write(struct.pack('<f', float(frame.values[offset+i])))
                     case 'i':
-                        self.connection.write(int(frame.values[offset+i]).to_bytes(4))
+                        self.connection.write(int(frame.values[offset+i]).to_bytes(4, 'little'))
                     case 'b':
                         self.connection.write(int(frame.values[offset+i]).to_bytes(1))
                     case _:
@@ -301,15 +314,22 @@ class BinaryComms(Comms):
     def __processByte(self, byte):
         if byte == MARKER:
             if self._expected == 0:
-                self._in_sync = False
-                self._marker = True
-                self._buffer.clear()
+                if self._marker:
+                    self._expected = byte
+                    self._marker = False
+                else:
+                    self._in_sync = False
+                    self._marker = True
+                    self._buffer.clear()
                 return None
             if len(self._buffer) == self._expected:
                 self._in_sync = True
                 frame = self.__parseFrame(self._buffer)
                 if frame is None:
+                    print("WARNING: failed to parse frame: ", self._buffer) # TODO logging
                     self._in_sync = False
+                #else:
+                #    print("Parsed frame: ", frame.frame_type)
                 self._expected = 0
                 self._marker = True
                 self._buffer.clear()
@@ -317,7 +337,8 @@ class BinaryComms(Comms):
             else:
                 self._buffer.append(byte)
                 return None
-        elif len(self._buffer) == self._expected and self._expected > 0:
+        elif ( len(self._buffer) >= self._expected and self._expected > 0 ) or len(self._buffer) >= 255:
+            print("WARNING: buffer overrun") # TODO logging
             self._in_sync = False
             self._expected = 0
             self._buffer.clear()
@@ -334,46 +355,67 @@ class BinaryComms(Comms):
             reg = SimpleFOCRegisters.by_id(buffer[1])
             values = []
             pos = 2
-            for t in reg.read_types:
-                val, size = self.__parse_value(buffer, pos, t)
-                pos += size
-                values.append(val)
+            if reg == SimpleFOCRegisters.REG_TELEMETRY_REG.id:       #TODO extract this to a function
+                val, size = self.__parse_value(buffer, pos, 'b')
+                pos += 1
+                for i in range(val):
+                    valm, size = self.__parse_value(buffer, pos, 'b')
+                    valr, size = self.__parse_value(buffer, pos, 'b')
+                    pos += 2
+                    values.append([valm, valr]) # TODO format!
+            else:
+                for t in reg.read_types:
+                    val, size = self.__parse_value(buffer, pos, t)
+                    pos += size
+                    values.append(val)
             return Frame(frame_type=FrameType.REGISTER, register=reg, values=values)
         if buffer[0] == ord('r'):
             reg = buffer[1]
             values = []
             pos = 2
-            for t in reg.read_types:
-                val, size = self.__parse_value(buffer, pos, t)
-                pos += size
-                values.append(val)
+            if reg == SimpleFOCRegisters.REG_TELEMETRY_REG.id:       #TODO extract this to a function
+                val, size = self.__parse_value(buffer, pos, 'b')
+                pos += 1
+                for i in range(val):
+                    valm, size = self.__parse_value(buffer, pos, 'b')
+                    valr, size = self.__parse_value(buffer, pos+1, 'b')
+                    pos += 2
+                    values.append([valm, valr]) # TODO format!
+            else:
+                for t in reg.read_types:
+                    val, size = self.__parse_value(buffer, pos, t)
+                    pos += size
+                    values.append(val)
             return Frame(frame_type=FrameType.RESPONSE, register=reg, values=values)
         if buffer[0] == ord('T'):
             id = buffer[1] # we can read the id byte, but we don't yet have the header to parse the values
             return Frame(frame_type=FrameType.TELEMETRY, telemetryid=id, values=buffer[2:])
         if buffer[0] == ord('H'):
-            num_registers = buffer[1]
+            telemetryid = buffer[1]
             registers = []
+            motors = []
             for i in range(2, len(buffer), 2):
-                registers.append([buffer[i], buffer[i+1]])
-            return Frame(frame_type=FrameType.HEADER, registers=registers)
+                motors.append(buffer[i])
+                registers.append(SimpleFOCRegisters.by_id(buffer[i+1]))
+            return Frame(frame_type=FrameType.HEADER, telemetryid=telemetryid, registers=registers, motors=motors)
         if buffer[0] == ord('S'):
             remote_in_sync = (buffer[1] != 0)
             return Frame(frame_type=FrameType.SYNC, values=[remote_in_sync])
         if buffer[0] == ord('A'):
             alert = buffer[1:].decode('ascii')
             return Frame(frame_type=FrameType.ALERT, alert=alert)
+        return None
 
     def __parse_value(self, buffer, pos, t):
         match t:
             case 'f':
                 if pos+4>len(buffer):
                     return None, 4
-                return struct.unpack('f', buffer[pos:pos+4]), 4
+                return struct.unpack('<f', buffer[pos:pos+4])[0], 4
             case 'i':
                 if pos+4>len(buffer):
                     return None, 4
-                return int.from_bytes(buffer[pos:pos+4]), 4
+                return int.from_bytes(buffer[pos:pos+4], 'little'), 4
             case 'b':
                 if pos+1>len(buffer):
                     return None, 1

@@ -1,4 +1,5 @@
 from enum import Enum
+import time
 
 
 class TorqueControlType(Enum):
@@ -44,16 +45,28 @@ class FrameType(Enum):
 
 
 class Frame(object):
-    def __init__(self, frame_type, register=None, values=None, alert=None, registers=None, telemetryid=None, motor_id=None, header=None, timestamp=None):
+    def __init__(self, frame_type, register=None, values=None, alert=None, telemetryid=None, registers=None, motors=None, motor_id=None, header=None, timestamp=None):
         self.frame_type = frame_type
-        self.register = register
-        self.values = values
-        self.alert = alert
-        self.registers = registers
-        self.telemetryid = telemetryid
-        self.motor_id = motor_id
-        self.header = header
-        self.timestamp = timestamp
+        if register is not None:
+          self.register = register
+        if values is not None:
+          self.values = values
+        if alert is not None:
+          self.alert = alert
+        if telemetryid is not None:
+          self.telemetryid = telemetryid
+        if registers is not None:
+          self.registers = registers
+        if motors is not None:
+          self.motors = motors
+        if motor_id is not None:
+          self.motor_id = motor_id
+        if header is not None:
+          self.header = header
+        if timestamp is not None:
+          self.timestamp = timestamp
+        else:
+          self.timestamp = time.time()
 
     def __repr__(self): # TODO prettify this output
         return self.__dict__.__str__()
