@@ -15,15 +15,15 @@ This python library provides easy control of SimpleFOC from a desktop PC or othe
 
 
 
-Note: Python API v0.0.3 is designed for use with SimpleFOC v2.3.3 or later
+Note: Python API v0.0.4 is designed for use with SimpleFOC v2.3.3 or later
 
 Features:
 
 - Serial connections to SimpleFOC drivers
 - Control motors via Commander protocol
 - Telemetry based on SimpleFOC monitoring abstraction
-- *In Progress:* Control motors via packet based protocol based on SimpleFOC Drivers Registers abstraction
-- *In Progress:* access motor Telemetry via SimpleFOC Drivers Telemetry abstraction
+- Control motors via packet based protocol based on SimpleFOC Drivers Registers abstraction
+- Access motor Telemetry via SimpleFOC Drivers Telemetry abstraction
 - Data streams based on reactive observables, for easy processing of telemetry
 - Compatibility with (local) Jupyter notebooks
 - CLI-tools: command line utilities for working with simplefoc
@@ -75,6 +75,8 @@ The library comes with a few ready-to-use command line tools, you can find them 
 
 ### simplefoc-cli
 
+:warning: *Work in progress*
+
 Send commands to the driver directly from the command line. Supports all the protocols and various command line options.
 
 ```plain
@@ -97,6 +99,8 @@ options:
 ```
 
 ### simplefoc-telemetry
+
+:warning: *Work in progress*
 
 Dump telemetry data from serial to a variety of different formats.
 
