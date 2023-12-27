@@ -3,7 +3,7 @@
 #
 
 from rx import operators as ops
-from .registers import SimpleFOCRegisters
+from .registers import SimpleFOCRegisters, parse_register, Register
 from simplefoc import FrameType
 
 
@@ -43,7 +43,17 @@ class Telemetry:
         if telemetryid != self._telemetry_ctrl:
             self.motors.set_register(0, SimpleFOCRegisters.REG_TELEMETRY_CTRL, telemetryid)
             self._telemetry_ctrl = telemetryid
-        self.motors.set_register(self.motors.current_motor, SimpleFOCRegisters.REG_TELEMETRY_REG, registers, motors) #TODO order is not correct!
+        values = [len(registers)]
+        for i in range(0, len(registers)):
+            r = registers[i]
+            if motors is not None:
+                values.append(motors[i])
+            else:
+                values.append(0)
+            if not isinstance(r, Register):
+                r = parse_register(r)
+            values.append(r.id)
+        self.motors.set_register(self.motors.current_motor, SimpleFOCRegisters.REG_TELEMETRY_REG, values)
 
 #    def set_period(self, period=0.25):
 #        pass # todo implement period as a register?

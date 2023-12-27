@@ -85,6 +85,7 @@ class Comms(object):
         self.is_running = True
         self._read_thread = threading.Thread(target=self.__run)
         self._read_thread.start()
+        self.send_frame(Frame(frame_type=FrameType.SYNC))
 
     def get_frame(self):
         raise NotImplementedError()
@@ -226,11 +227,11 @@ class BinaryComms(Comms):
 
     def send_frame(self, frame):
         self.connection.write(MARKER.to_bytes(1))
-        self.connection.write(self.__frame_size(frame).to_bytes(1))
+        fsize = self.__frame_size(frame)
+        print("Sending frame of size ", fsize)
+        self.connection.write(fsize.to_bytes(1))
         match frame.frame_type:
             case FrameType.REGISTER:
-                if not isinstance(frame.register, Register):
-                    frame.register = Register.by_id(frame.register)
                 self.connection.write(b'R')
                 self.connection.write(int(frame.register).to_bytes(1))
                 self.__write_values(frame)
@@ -241,8 +242,6 @@ class BinaryComms(Comms):
                 self.connection.write(b'A')
                 self.connection.write(str(frame.alert).encode('ascii'))
             case FrameType.RESPONSE:
-                if not isinstance(frame.register, Register):
-                    frame.register = Register.by_id(frame.register)
                 self.connection.write(b'r')
                 self.connection.write(int(frame.register).to_bytes(1))
                 self.__write_values(frame)
@@ -276,32 +275,46 @@ class BinaryComms(Comms):
 
     def __write_values(self, frame, offset=0):
         if frame.values is not None and len(frame.values) > 0:
-            for i, t in enumerate(frame.register.write_types):
-                match t:
-                    case 'f':
-                        self.connection.write(struct.pack('<f', float(frame.values[offset+i])))
-                    case 'i':
-                        self.connection.write(int(frame.values[offset+i]).to_bytes(4, 'little'))
-                    case 'b':
-                        self.connection.write(int(frame.values[offset+i]).to_bytes(1))
-                    case _:
-                        raise Exception("Unsupported value type")
+            if frame.register == SimpleFOCRegisters.REG_TELEMETRY_REG:
+                for i in range(0, len(frame.values)):
+                    self.connection.write(int(frame.values[i]).to_bytes(1))
+            else:
+                for i, t in enumerate(frame.register.write_types):
+                    match t:
+                        case 'f':
+                            self.connection.write(struct.pack('<f', float(frame.values[offset+i])))
+                        case 'i':
+                            self.connection.write(int(frame.values[offset+i]).to_bytes(4, 'little'))
+                        case 'b':
+                            self.connection.write(int(frame.values[offset+i]).to_bytes(1))
+                        case _:
+                            raise Exception("Unsupported value type")
 
     def __frame_size(self, frame):
         match frame.frame_type:
             case FrameType.REGISTER:
-                size = 2
+                size = 2  # type, register
+                if not isinstance(frame.register, Register):
+                    frame.register = Register.by_id(frame.register)
                 if frame.values is not None and len(frame.values) > 0:
-                    size += sum((1 if t == 'b' else 4) for t in frame.register.write_types)
+                    if frame.register == SimpleFOCRegisters.REG_TELEMETRY_REG:
+                        size += len(frame.values)
+                    else:
+                        size += sum((1 if t == 'b' else 4) for t in frame.register.write_types)
                 return size
             case FrameType.SYNC:
-                return 2
+                return 2  # type, status byte
             case FrameType.ALERT:
                 return 1 + len(frame.alert)
             case FrameType.RESPONSE:
-                size = 2
+                size = 2  # type, register
+                if not isinstance(frame.register, Register):
+                    frame.register = Register.by_id(frame.register)
                 if frame.values is not None and len(frame.values) > 0:
-                    size += sum((1 if t == 'b' else 4) for t in frame.register.write_types)
+                    if frame.register == SimpleFOCRegisters.REG_TELEMETRY_REG:
+                        size += 1 + len(frame.values)
+                    else:
+                        size += sum((1 if t == 'b' else 4) for t in frame.register.write_types)
                 return size
             case FrameType.TELEMETRY:
                 size = 2
@@ -355,7 +368,7 @@ class BinaryComms(Comms):
             reg = SimpleFOCRegisters.by_id(buffer[1])
             values = []
             pos = 2
-            if reg == SimpleFOCRegisters.REG_TELEMETRY_REG.id:       #TODO extract this to a function
+            if reg == SimpleFOCRegisters.REG_TELEMETRY_REG:       #TODO extract this to a function
                 val, size = self.__parse_value(buffer, pos, 'b')
                 pos += 1
                 for i in range(val):
@@ -370,10 +383,10 @@ class BinaryComms(Comms):
                     values.append(val)
             return Frame(frame_type=FrameType.REGISTER, register=reg, values=values)
         if buffer[0] == ord('r'):
-            reg = buffer[1]
+            reg = SimpleFOCRegisters.by_id(buffer[1])
             values = []
             pos = 2
-            if reg == SimpleFOCRegisters.REG_TELEMETRY_REG.id:       #TODO extract this to a function
+            if reg == SimpleFOCRegisters.REG_TELEMETRY_REG:       #TODO extract this to a function
                 val, size = self.__parse_value(buffer, pos, 'b')
                 pos += 1
                 for i in range(val):

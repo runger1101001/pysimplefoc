@@ -113,6 +113,7 @@ class SimpleFOCRegisters(object):
     REG_MOTION_DOWNSAMPLE = Register('REG_MOTION_DOWNSAMPLE',0x52,['i'],['i'])
     REG_DRIVER_VOLTAGE_LIMIT = Register('REG_DRIVER_VOLTAGE_LIMIT',0x53,['f'],['f'])
     REG_PWM_FREQUENCY = Register('REG_PWM_FREQUENCY',0x54,['i'],['i'])
+    REG_VOLTAGE_SENSOR_ALIGN = Register('REG_VOLTAGE_SENSOR_ALIGN',0x55,['f'],['f'])
 
     REG_ZERO_ELECTRIC_ANGLE = Register('REG_ZERO_ELECTRIC_ANGLE',0x60,['f'],['f'])
     REG_SENSOR_DIRECTION = Register('REG_SENSOR_DIRECTION',0x61,['b'],['b'])

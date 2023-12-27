@@ -2,6 +2,12 @@ from enum import Enum
 import time
 
 
+class Direction(Enum):
+  CCW = -1
+  UNKNOWN = 0
+  CW = 1
+
+
 class TorqueControlType(Enum):
   voltage            = 0x00
   dc_current         = 0x01
