@@ -24,6 +24,9 @@ class Motor:
     def set_register(self, reg, values):
         self.motors.set_register(self.motor_id, reg, values)
 
+    def get_register(self, reg, timeout:float=1.0):
+        return self.motors.get_register(self.motor_id, reg, timeout)
+
     def set_target(self, target):
         target = float(target)
         self.motors.set_register(self.motor_id, SimpleFOCRegisters.REG_TARGET, target)

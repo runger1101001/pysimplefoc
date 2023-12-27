@@ -15,15 +15,15 @@ This python library provides easy control of SimpleFOC from a desktop PC or othe
 
 
 
-Note: Python API v0.0.3 is designed for use with SimpleFOC v2.3.3 or later
+Note: Python API v0.0.4 is designed for use with SimpleFOC v2.3.3 or later
 
 Features:
 
 - Serial connections to SimpleFOC drivers
 - Control motors via Commander protocol
 - Telemetry based on SimpleFOC monitoring abstraction
-- *In Progress:* Control motors via packet based protocol based on SimpleFOC Drivers Registers abstraction
-- *In Progress:* access motor Telemetry via SimpleFOC Drivers Telemetry abstraction
+- Control motors via packet based protocol based on SimpleFOC Drivers Registers abstraction
+- Access motor Telemetry via SimpleFOC Drivers Telemetry abstraction
 - Data streams based on reactive observables, for easy processing of telemetry
 - Compatibility with (local) Jupyter notebooks
 - CLI-tools: command line utilities for working with simplefoc
@@ -34,14 +34,26 @@ Features:
 1. Install python dependencies:
 
 ```
-pip install pyserial reactivex simplefoc
+pip install pyserial rx
+```
+or, on Debian:
+```
+sudo apt install python3-serial python3-rx
 ```
 
-2. Set up your serial connection to the driver.
+2. Install PySimpleFOC:
 
-3. Decide on protocol to use: Commander or Packets, and if Packets, ASCII or Binary
+```
+pip install simplefoc
+```
 
-4. Write and run some python code (see our [examples](./examples/))
+:warning: Until the release to PyPI you cannot install pysimplefoc via pip. You can still use it: check it out from GitHub, and then create symlink (windows: directory junction) from inside your project to the `simplefoc` folder of pysimplefoc.
+
+3. Set up your serial connection to the driver.
+
+4. Decide on protocol to use: Commander or Packets, and if Packets, Text or Binary
+
+5. Write and run some python code (see our [examples](./examples/))
 
 ## Setup Driver side
 
@@ -62,6 +74,8 @@ Typically a firmware adapted for python control should initialize everything wit
 The library comes with a few ready-to-use command line tools, you can find them in the [utilities](./utilities/) folder.
 
 ### simplefoc-cli
+
+:warning: *Work in progress*
 
 Send commands to the driver directly from the command line. Supports all the protocols and various command line options.
 
@@ -85,6 +99,8 @@ options:
 ```
 
 ### simplefoc-telemetry
+
+:warning: *Work in progress*
 
 Dump telemetry data from serial to a variety of different formats.
 
