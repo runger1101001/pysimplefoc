@@ -21,6 +21,9 @@ MonitoringFlags = {
 def serial(port, baud):
     """ Create a Commander instance using a serial port connection.
         Note that the connection is not opened until the connect() method is called on the Commander instance.
+
+        @param port: the serial port name, e.g. '/dev/ttyUSB0'
+        @param baud: the baud rate, e.g. 115200
     """
     ser_conn = ser.Serial()
     ser_conn.port = port
@@ -34,7 +37,9 @@ class Commander:
 
         Use it to obtain a FullControl instance for each motor you want to control.
 
-        Monitoring is supported for up to one motor, using the usual SimpleFOC monitoring registers.
+        Monitoring is supported for up to one motor, using the usual SimpleFOC monitoring.
+
+        Normally, you will obtain a commander instace by calling commander.serial(port, baud)
     """
     def __init__(self, connection):
         self.connection = connection

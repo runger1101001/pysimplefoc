@@ -16,8 +16,8 @@ class Motors(object):
         Typically, you will get a Motors instance by calling packets.serial(port, baud)
         
         Once you have the Motors instance, you can get a Motor instance by calling motors.motor(motor_id).
-        Motor ids are integers, starting from 0. If you have only one motor, you can more or less
-        ignore the motor_id parameter, it is defaulted to 0.
+        Motor ids are integers, starting from 0. If you have only one motor, you can ignore the motor_id parameter, 
+        it is defaulted to 0.
 
         @param connection: the packet-based connection (ASCIIComms or BinaryComms) object
     """

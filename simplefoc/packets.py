@@ -25,6 +25,15 @@ MARKER = 0xA5
 
 
 def serial(port, baud, protocol=ProtocolType.binary):
+    """ Create a serial connection to a SimpleFOC driver, and return a Motors instance to interact with it. 
+        The connection is packet-based, and uses either ASCII or binary protocol.
+        
+        Note that the serial connection is not opened until you call motors.connect().
+    
+        @param port: the serial port to connect to
+        @param baud: the baud rate to use
+        @param protocol: the protocol to use (binary or ascii)
+    """
     ser_conn = ser.Serial()
     ser_conn.port = port
     ser_conn.baudrate = baud
@@ -36,6 +45,8 @@ def serial(port, baud, protocol=ProtocolType.binary):
     else:
         raise ValueError("Unknown protocol type")
     return Motors(comms)
+
+
 
 
 def parse_value(valuestr):

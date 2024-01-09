@@ -6,6 +6,21 @@ SIZES = {
 }
 
 class Register:
+    """ 
+        Register class 
+        Don't create this class directly, use SimpleFOCRegisters.add_register() instead
+
+        name: str
+        id: int
+        read_types: list of chars b, i, f  - empty list means read not supported
+        write_types: list of chars b, i, f - empty list means write not supported
+
+        A register may return or accept multiple values of different types. For this reason the read_types and write_types
+        are lists of chars, where each char represents a type. The type chars are:
+            b: unsigned byte
+            i: unsigned int
+            f: float
+    """
     def __init__(self, name, id, read_types, write_types):
         self.name = name
         self.id = id
@@ -44,9 +59,25 @@ class Register:
 
 
 class SimpleFOCRegisters(object):
+    """ SimpleFOCRegisters class - static singleton class for all registers
+        
+        This class is a singleton, and implements a kind of Enum like behaviour for the available registers.
+        Its not an actual Enum to enable dynamic creation of registers for when users want to extend it with
+        their own registers.
+
+        Access registers like this:
+            reg = SimpleFOCRegisters.REG_STATUS
+            reg = SimpleFOCRegisters.by_id(0x00)
+            reg = parse_register('REG_STATUS')
+            reg = parse_register('STATUS')
+
+        Add registers like this:
+            SimpleFOCRegisters.add_register('REG_MY_REGISTER', 0x80, ['f'], ['f'])
+
+    """
     @classmethod
     def add_register(cls, name, id, read_types, write_types):
-        if cls[name] is not None:
+        if getattr(cls, name, None) is not None:
             raise Exception("Register {} already exists".format(name))
         for n, r in cls.items():
             if r.id == id:
@@ -129,6 +160,7 @@ class SimpleFOCRegisters(object):
 
 
 def parse_register(regstr:str|int):
+    """ Parse a register string or int to a Register object """
     if isinstance(regstr, Register):
         return regstr
     if isinstance(regstr, int):
